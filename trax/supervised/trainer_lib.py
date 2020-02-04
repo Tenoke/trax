@@ -175,10 +175,9 @@ class Trainer(object):
     m_weights, m_state = metrics_in_parallel.init(dummy_signature)
     self._metrics_weights = self._for_n_devices(m_weights)
     self._metrics_state = self._for_n_devices(m_state)
-
+    self.metrics_in_parallel = metrics_in_parallel
     # Jit model_predict and update so they're fast.
-    self._jit_eval = _jit_predict_fn(
-        model_predict_eval, metrics_in_parallel, self._n_devices)
+
     self._jit_update_fn = _jit_update_fn(
         model_train, loss_fn, opt, self._n_devices)
 
@@ -319,7 +318,7 @@ class Trainer(object):
       self._train_sw.scalar('training/steps per second',
                             n_steps / elapsed_time, step=self._step)
       self._train_sw.flush()
-    self.evaluate(n_eval_steps)
+    # self.evaluate(n_eval_steps)
     if self._eval_sw:
       self._eval_sw.flush()
     if self._should_save_checkpoints:
@@ -381,6 +380,8 @@ class Trainer(object):
     """
     metrics = collections.defaultdict(float)
     count = 0
+    self._jit_eval = _jit_predict_fn(
+        self._model_predict_eval, self.metrics_in_parallel, self._n_devices)
     for inp in inputs_stream:
       count += 1
       rng, subrng = jax_random.split(rng)
